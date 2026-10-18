@@ -1,0 +1,18 @@
+# Secrets: never push these
+.env
+.streamlit/secrets.toml
+
+# Virtual environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Editor and OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+front/

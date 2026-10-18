@@ -2,7 +2,7 @@
 
 Give it a topic and four AI agents work in sequence: one searches the web, one reads the best source, one writes a structured report, and one reviews it and gives it a score. You get a finished report with sources, plus the critic’s feedback.
 
-**Live demo:** <add your Streamlit link here>
+**Live demo:** https://simple-multi-agent-research-system.streamlit.app/
 
 ![Screenshot of Research Relay](docs/screenshot.png)
 
@@ -34,7 +34,7 @@ If a website blocks scraping, the pipeline carries on and writes the report from
 - Live progress: each agent’s card updates as it works
 - Report, critic’s review, clickable sources and raw research in separate tabs
 - Download the report as Markdown
-- Switch the language model through environment variables
+- Runs on Groq’s `gpt-oss-20b` model, easy to swap in `agents.py`
 
 ## Tech stack
 
@@ -89,7 +89,7 @@ Python, LangChain, Groq (LLM), Tavily (web search), BeautifulSoup and Requests (
 
 1. Push the repo to GitHub (`.env` is in `.gitignore`, so your keys stay private).
 2. At https://share.streamlit.io choose the repo and set the main file to `app.py`.
-3. In **Advanced settings → Secrets**, add:
+3. In **Advanced settings → Secrets** (or **Settings → Secrets** after deploying), add:
 
    ```toml
    GROQ_API_KEY = "your-key"
@@ -108,7 +108,3 @@ Python, LangChain, Groq (LLM), Tavily (web search), BeautifulSoup and Requests (
 - Let the reader agent scrape several sources instead of one
 - Orchestrate the agents with LangGraph
 - Save past reports and let users revisit them
-
-## License
-
-MIT

@@ -3,6 +3,7 @@ import re
 import time
 import streamlit as st
 from agents import build_search_agent, build_reader_agent, writer_chain, critic_chain
+from tools import scrape_url
 
 st.set_page_config(page_title="Research Relay", page_icon="🔎", layout="centered")
 
@@ -40,7 +41,7 @@ AGENTS = [
     ("write", "✍️", "Writer", "Drafts the report"),
     ("critic", "🧐", "Critic", "Scores and reviews it"),
 ]
-BADGES = {"wait": "Waiting", "run": "Working…", "done": "Done", "warn": "Page blocked, skipped"}
+BADGES = {"wait": "Waiting", "run": "Working…", "done": "Done", "warn": "Skipped, used search results"}
 EXAMPLES = ["Solid-state batteries in EVs", "How do vaccines train the immune system?", "Future of remote work"]
 
 
@@ -61,6 +62,11 @@ def _text(msg) -> str:
     return c
 
 
+def extract_urls(text: str, limit: int = 3) -> list:
+    urls = re.findall(r"https?://[^\s)\]>\"']+", text)
+    return list(dict.fromkeys(u.rstrip(".,;:") for u in urls))[:limit]
+
+
 def run_pipeline(topic: str, show) -> dict:
     t0, states = time.time(), {}
 
@@ -72,20 +78,26 @@ def run_pipeline(topic: str, show) -> dict:
     r = build_search_agent().invoke({"messages": [(
         "user", f"Find recent, reliable and detailed information about: {topic}")]})
     search_results = _text(r["messages"][-1])
+    all_text = "\n".join(_text(m) for m in r["messages"])  # includes the raw tool output
     mark("search", "done")
 
     mark("read", "run")
+    urls = extract_urls(all_text)
+    scraped, reader_error = "(No scraped content available.)", None
     try:
         r = build_reader_agent().invoke({"messages": [(
             "user",
-            f"Based on the following search results about '{topic}', "
-            f"pick the most relevant URL and scrape it for deeper content.\n\n"
-            f"Search Results:\n{search_results}")]})
+            f"Pick the most relevant of these URLs for the topic '{topic}' "
+            f"and scrape it for deeper content:\n" + "\n".join(urls))]})
         scraped = _text(r["messages"][-1])[:8000]
-        mark("read", "done")
-    except Exception:
-        scraped = "(No scraped content available.)"
-        mark("read", "warn")
+    except Exception as e:
+        reader_error = str(e)[:300]
+        for u in urls:  # fallback: scrape directly, without the model
+            page = scrape_url.invoke({"url": u})
+            if not page.startswith(("Could not scrape", "The page had no")):
+                scraped = f"Source: {u}\n{page}"
+                break
+    mark("read", "warn" if scraped.startswith("(No") else "done")
 
     mark("write", "run")
     research = (f"SEARCH RESULTS:\n{search_results}\n\n"
@@ -98,7 +110,8 @@ def run_pipeline(topic: str, show) -> dict:
     mark("critic", "done")
 
     return {"topic": topic, "search": search_results, "scraped": scraped,
-            "report": report, "feedback": feedback, "seconds": time.time() - t0}
+            "report": report, "feedback": feedback, "seconds": time.time() - t0,
+            "reader_error": reader_error}
 
 
 def set_topic(value: str):
@@ -142,6 +155,10 @@ if result:
     report, feedback = result["report"], result["feedback"]
     m = re.search(r"Score:\s*(\d+(?:\.\d+)?)\s*/\s*10", feedback, re.I)
     urls = list(dict.fromkeys(u.rstrip(".,;:") for u in re.findall(r"https?://[^\s)\]>\"']+", report)))
+
+    if result.get("reader_error"):
+        st.info(f"The reader agent hit a problem ({result['reader_error']}). "
+                "The page was scraped directly instead, or search results were used.")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Critic score", f"{m.group(1)}/10" if m else "n/a")

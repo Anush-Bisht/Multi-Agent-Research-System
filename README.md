@@ -59,8 +59,8 @@ Python, LangChain, Groq (LLM), Tavily (web search), BeautifulSoup and Requests (
 1. **Clone and enter the project**
 
    ```bash
-   git clone <your-repo-url>
-   cd <your-repo-name>
+   git clone https://github.com/Anush-Bisht/Multi-Agent-Research-System
+   cd Multi-Agent-Research-System
    ```
 
 2. **Create a virtual environment and install dependencies**
